@@ -31,17 +31,23 @@ class DatabaseError(RuntimeError):
 class QueryResult:
     columns: list[str]
     rows: list[list[Any]] = field(default_factory=list)
+    offset: int = 0
     truncated: bool = False
     elapsed_ms: int = 0
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        out: dict[str, Any] = {
             "columns": self.columns,
             "rows": self.rows,
             "row_count": len(self.rows),
             "truncated": self.truncated,
-            "elapsed_ms": self.elapsed_ms,
         }
+        if self.offset:
+            out["offset"] = self.offset
+        if self.truncated:
+            out["next_offset"] = self.offset + len(self.rows)
+        out["elapsed_ms"] = self.elapsed_ms
+        return out
 
 
 class _Types:
@@ -209,12 +215,15 @@ class Database:
         v = rs.getString(i)
         return None if v is None else _clip(str(v))
 
-    def _read(self, rs: Any, limit: int) -> QueryResult:
+    def _read(self, rs: Any, limit: int, offset: int = 0) -> QueryResult:
         meta = rs.getMetaData()
         count = int(meta.getColumnCount())
         columns = [str(meta.getColumnLabel(i)) for i in range(1, count + 1)]
         types = [int(meta.getColumnType(i)) for i in range(1, count + 1)]
-        result = QueryResult(columns=columns)
+        result = QueryResult(columns=columns, offset=offset)
+        for _ in range(offset):
+            if not rs.next():
+                return result
         while rs.next():
             if len(result.rows) >= limit:
                 result.truncated = True
@@ -222,17 +231,23 @@ class Database:
             result.rows.append([self._value(rs, i, types[i - 1]) for i in range(1, count + 1)])
         return result
 
-    def query(self, sql: str, params: Sequence[Param] | None = None, max_rows: int | None = None) -> QueryResult:
+    def query(
+        self,
+        sql: str,
+        params: Sequence[Param] | None = None,
+        max_rows: int | None = None,
+        offset: int = 0,
+    ) -> QueryResult:
         limit = min(max_rows or self.settings.max_rows, self.settings.max_rows)
 
         def work(conn: Any) -> QueryResult:
             started = time.perf_counter()
             stmt = self._prepare(conn, sql, params)
             try:
-                stmt.setMaxRows(limit + 1)
+                stmt.setMaxRows(offset + limit + 1)
                 stmt.setFetchSize(min(limit + 1, 500))
                 rs = stmt.executeQuery()
-                result = self._read(rs, limit)
+                result = self._read(rs, limit, offset)
             finally:
                 stmt.close()
             result.elapsed_ms = round((time.perf_counter() - started) * 1000)

@@ -197,13 +197,13 @@ footer a { color: #fff; }
           <span lang="en">Where do we keep order dates for sales?</span>
           <span lang="ko">판매 쪽 주문일은 어디에 저장돼?</span>
         </li>
-        <li class="turn call">search_columns<span>(keyword="주문")</span></li>
+        <li class="turn call">search_columns<span>(keyword="주문", table_search="판매")</span></li>
         <li class="turn result">
           <table>
             <thead><tr><th>TABLE</th><th>COLUMN</th><th>TYPE</th><th>COMMENT</th></tr></thead>
             <tbody>
               <tr><td>SALES_ORDER</td><td>ORDER_DATE</td><td>TIMESTAMP(6)</td><td class="ko">주문 일자</td></tr>
-              <tr><td>SALES_ORDER</td><td>ORDER_USER</td><td>VARCHAR</td><td class="ko">주문 담당자</td></tr>
+              <tr><td>SALES_ORDER</td><td>ORDER_USER</td><td>VARCHAR(20)</td><td class="ko">주문 담당자</td></tr>
               <tr><td>ORDER_LINE</td><td>DELIVERY_DATE</td><td>TIMESTAMP(6)</td><td class="ko">납기 일자</td></tr>
             </tbody>
           </table>
@@ -254,8 +254,8 @@ footer a { color: #fff; }
       <article class="pillar">
         <h3><span lang="en">Results an agent can use</span><span lang="ko">에이전트가 바로 쓰는 결과</span></h3>
         <p>
-          <span lang="en">Typed JSON, a row cap with a <code>truncated</code> flag, timeouts, plans as a tree, and errors that say what to try next.</span>
-          <span lang="ko">타입이 살아 있는 JSON, 행 수 상한과 <code>truncated</code> 표시, 타임아웃, 트리 형태의 실행 계획, 다음 행동을 알려 주는 오류 메시지.</span>
+          <span lang="en">Typed JSON, paged results with a <code>next_offset</code>, timeouts, plans as a tree, and errors that say what to try next.</span>
+          <span lang="ko">타입이 살아 있는 JSON, <code>next_offset</code>으로 이어 받는 페이지 단위 결과, 타임아웃, 트리 형태의 실행 계획, 다음 행동을 알려 주는 오류 메시지.</span>
         </p>
       </article>
       <article class="pillar">

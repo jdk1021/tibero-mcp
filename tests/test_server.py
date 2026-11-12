@@ -5,6 +5,7 @@ import asyncio
 import pytest
 
 from tibero_mcp.config import Settings
+from tibero_mcp.db import QueryResult
 from tibero_mcp.server import _name, _split_table, build_server
 
 
@@ -43,3 +44,16 @@ def test_qualified_table_names_are_split():
     assert _split_table("hr.emp", None, "ME") == ("HR", "EMP")
     assert _split_table("emp", None, "ME") == ("ME", "EMP")
     assert _split_table("emp", "hr", "ME") == ("HR", "EMP")
+
+
+def test_listing_tools_accept_paging():
+    tools = {t.name: t for t in asyncio.run(build_server(settings()).list_tools())}
+    for name in ("list_tables", "search_columns", "query"):
+        assert "offset" in tools[name].input_schema["properties"], name
+    assert "table_search" in tools["search_columns"].input_schema["properties"]
+
+
+def test_truncated_results_say_where_to_continue():
+    page = QueryResult(columns=["A"], rows=[[1], [2]], offset=10, truncated=True).as_dict()
+    assert (page["offset"], page["next_offset"]) == (10, 12)
+    assert "next_offset" not in QueryResult(columns=["A"], rows=[[1]]).as_dict()

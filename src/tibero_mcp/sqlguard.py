@@ -107,7 +107,7 @@ def parse_for_execute(sql: str) -> Statement:
     return parse_single(sql)
 
 
-def require_read(sql: str) -> Statement:
+def require_read(sql: str, *, writes_enabled: bool = False) -> Statement:
     stmt = parse_single(sql)
     if not stmt.is_read:
         reason = (
@@ -115,8 +115,10 @@ def require_read(sql: str) -> Statement:
             if stmt.keyword in READ_KEYWORDS
             else f"{stmt.keyword} is not a query"
         )
-        raise SqlRejected(
-            f"Read-only: {reason}. Only SELECT and WITH queries run here; "
-            "use the execute tool for changes (available when TIBERO_READ_ONLY=false)."
+        where = (
+            "Use the execute tool for statements that change data or schema."
+            if writes_enabled
+            else "This server is read-only, so changes cannot be made through it."
         )
+        raise SqlRejected(f"Rejected: {reason}. Only SELECT and WITH queries run here. {where}")
     return stmt
