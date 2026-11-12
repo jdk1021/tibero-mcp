@@ -5,7 +5,6 @@
 import argparse
 import logging
 import sys
-import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Annotated, Any
@@ -39,7 +38,6 @@ TYPE_EXPR = (
 )
 
 Schema = Annotated[str | None, Field(description="Schema (owner). Defaults to the connected user.")]
-Offset = Annotated[int, Field(ge=0, description="Rows to skip; pass next_offset from a truncated result to page.")]
 
 
 class ToolFailure(ToolError):
@@ -86,8 +84,7 @@ def build_server(settings: Settings) -> MCPServer:
             f"{settings.user.upper()} ({mode}). Tibero speaks an Oracle-compatible SQL dialect: use ROWNUM "
             "for row limits, DUAL for scalar selects, and the ALL_* dictionary views. Unqualified names "
             "resolve to the connected user's schema. Start with list_tables or search_columns to find "
-            "objects (comments are often in Korean), then describe_table before writing queries. "
-            "Results are capped; when `truncated` is true, call again with offset=next_offset."
+            "objects (comments are often in Korean), then describe_table before writing queries."
         ),
     )
 
@@ -123,7 +120,6 @@ def build_server(settings: Settings) -> MCPServer:
             str | None, Field(description="Case-insensitive text matched against table names and comments.")
         ] = None,
         include_views: bool = True,
-        offset: Offset = 0,
     ) -> dict[str, Any]:
         """List tables (and views) in a schema with their comments and approximate row counts."""
         own = owner(schema)
@@ -146,7 +142,7 @@ def build_server(settings: Settings) -> MCPServer:
             params += [_like(search), _like(search)]
         sql += " ORDER BY NAME"
         with tool_errors():
-            result = db.query(sql, params, offset=offset)
+            result = db.query(sql, params)
         return {"schema": own, **result.as_dict()}
 
     @mcp.tool(annotations=READ)
@@ -243,16 +239,11 @@ def build_server(settings: Settings) -> MCPServer:
     def search_columns(
         keyword: Annotated[str, Field(description="Text matched against column names and column comments.")],
         schema: Schema = None,
-        table_search: Annotated[
-            str | None, Field(description="Optional text to narrow the tables searched (name or table comment).")
-        ] = None,
-        max_rows: Annotated[int, Field(ge=1, description="Rows per page.")] = 100,
-        offset: Offset = 0,
     ) -> dict[str, Any]:
-        """Find columns across a schema by name or comment, e.g. '주문' or 'ORDER_DT'. Results are paged."""
+        """Find columns across all tables of a schema by name or comment, e.g. '주문' or 'ORDER_DT'."""
         own = owner(schema)
         sql = (
-            f"SELECT c.TABLE_NAME, c.COLUMN_NAME, {TYPE_EXPR} AS TYPE,"
+            "SELECT c.TABLE_NAME, c.COLUMN_NAME, c.DATA_TYPE,"
             " m.COMMENTS AS COLUMN_COMMENT, t.COMMENTS AS TABLE_COMMENT"
             " FROM ALL_TAB_COLUMNS c"
             " LEFT JOIN ALL_COL_COMMENTS m ON m.OWNER = c.OWNER AND m.TABLE_NAME = c.TABLE_NAME"
@@ -261,12 +252,9 @@ def build_server(settings: Settings) -> MCPServer:
             " WHERE c.OWNER = ? AND (UPPER(c.COLUMN_NAME) LIKE ? OR UPPER(m.COMMENTS) LIKE ?)"
         )
         params: list[Param] = [own, _like(keyword), _like(keyword)]
-        if table_search:
-            sql += " AND (UPPER(c.TABLE_NAME) LIKE ? OR UPPER(t.COMMENTS) LIKE ?)"
-            params += [_like(table_search), _like(table_search)]
         sql += " ORDER BY c.TABLE_NAME, c.COLUMN_ID"
         with tool_errors():
-            result = db.query(sql, params, max_rows, offset)
+            result = db.query(sql, params)
         return {"schema": own, **result.as_dict()}
 
     @mcp.tool(annotations=READ)
@@ -276,30 +264,26 @@ def build_server(settings: Settings) -> MCPServer:
         max_rows: Annotated[
             int | None, Field(ge=1, description=f"Row cap for this call (server maximum {settings.max_rows}).")
         ] = None,
-        offset: Offset = 0,
     ) -> dict[str, Any]:
         """Run a read-only query and return columns and rows. `truncated` is true when more rows exist."""
         with tool_errors():
-            stmt = require_read(sql, writes_enabled=writes)
-            return db.query(stmt.sql, params, max_rows, offset).as_dict()
+            stmt = require_read(sql)
+            return db.query(stmt.sql, params, max_rows).as_dict()
 
     @mcp.tool(annotations=READ)
     def explain(
         sql: Annotated[str, Field(description="One SELECT or WITH statement to plan without running it.")],
     ) -> dict[str, Any]:
-        """Show the optimizer's execution plan as an indented tree, plus per-step cost, cardinality and
-        access/filter predicates exactly as Tibero reports them."""
-        started = time.perf_counter()
+        """Show the optimizer's execution plan for a query, as an indented tree plus per-step details."""
         with tool_errors():
-            stmt = require_read(sql, writes_enabled=writes)
+            stmt = require_read(sql)
             steps = db.explain(stmt.sql)
         lines = []
         for s in steps:
             target = f" {s['object_owner']}.{s['object_name']}" if s.get("object_name") else ""
             cost = f"  (cost={s['cost']}, rows={s['cardinality']})" if s.get("cost") is not None else ""
             lines.append(f"{'  ' * max((s.get('depth') or 1) - 1, 0)}{s['operation']}{target}{cost}")
-        elapsed = round((time.perf_counter() - started) * 1000)
-        return {"plan": "\n".join(lines), "steps": steps, "elapsed_ms": elapsed}
+        return {"plan": "\n".join(lines), "steps": steps}
 
     if writes:
 

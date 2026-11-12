@@ -28,7 +28,7 @@
 
 **Schema discovery that reads comments.** In many Tibero schemas the comments are the only documentation. Search tables and columns by comment (`주문`, `납기`), and get columns, primary, unique and foreign keys and indexes for a table in one call.
 
-**Results an agent can use.** Typed JSON (numbers stay numbers, dates are ISO strings, LOBs are clipped), a hard row cap with a `truncated` flag and a `next_offset` to continue from, statement timeouts, execution plans as a readable tree, and errors that say what to try next.
+**Results an agent can use.** Typed JSON (numbers stay numbers, dates are ISO strings, LOBs are clipped), a hard row cap with a `truncated` flag, statement timeouts, execution plans as a readable tree, and errors that say what to try next.
 
 **No driver hunting.** The official TmaxTibero JDBC driver ([`com.tmaxtibero:tbjdbc8`](https://central.sonatype.com/artifact/com.tmaxtibero/tbjdbc8), GPG-signed on Maven Central) is downloaded on first run, checked against a pinned SHA-1 and cached. No proprietary jar in this repository, no `CLASSPATH` to set.
 
@@ -90,10 +90,10 @@ The HTTP transport has no authentication and binds to `127.0.0.1` by default. Ke
 | Tool | What it does |
 |---|---|
 | `list_schemas` | Schemas with table and view counts; system schemas only on request |
-| `list_tables` | Tables and views with comments and row estimates, filtered by text in the name **or comment**; paged |
+| `list_tables` | Tables and views with comments and row estimates, filtered by text in the name **or comment** |
 | `describe_table` | Columns (type, nullability, default, comment), primary, unique and foreign keys, indexes |
-| `search_columns` | Columns across a schema matched by name or comment, with full types such as `VARCHAR(20)`; narrow by table, paged |
-| `query` | One `SELECT`/`WITH` with `?` bind parameters, a row cap and paging |
+| `search_columns` | Columns across a schema matched by name or comment |
+| `query` | One `SELECT`/`WITH` with `?` bind parameters and a row cap |
 | `explain` | Execution plan as an indented tree, plus per-step cost, cardinality and predicates |
 | `execute` | DML, DDL or a PL/SQL block, committed on success. **Registered only when `TIBERO_READ_ONLY=false`** |
 
