@@ -1,0 +1,32 @@
+name: Bug report
+description: Something does not work as described
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The tool you called, the arguments, and the result or error message.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: tibero
+    attributes:
+      label: Tibero server version
+      placeholder: e.g. Tibero 6 FS07
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: tibero-mcp version, Java version, OS, MCP client
+      placeholder: e.g. 0.1.0, OpenJDK 21, Ubuntu 24.04, Claude Code
+  - type: markdown
+    attributes:
+      value: Remove passwords, host names, table names and data you cannot share before submitting.

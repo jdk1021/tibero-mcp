@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-labelledby="t d">
+  <title id="t">tibero-mcp</title>
+  <desc id="d">MCP server that lets AI agents explore and query Tibero databases, read-only by default.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#051657"/>
+      <stop offset="1" stop-color="#0B2470"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="400" fill="url(#bg)"/>
+
+  <!-- schema graph motif: tables linked by keys -->
+  <g fill="none" stroke="#6E84BE" stroke-width="2" opacity=".85">
+    <path d="M880 120 C 960 120, 960 210, 1040 210"/>
+    <path d="M880 290 C 960 290, 960 210, 1040 210"/>
+    <path d="M1160 210 H 1220"/>
+  </g>
+  <g font-family="'IBM Plex Mono', ui-monospace, Menlo, monospace" font-size="15">
+    <g transform="translate(760 88)">
+      <rect width="120" height="64" rx="6" fill="#20419A"/>
+      <text x="14" y="26" fill="#FFFFFF">SALES_ORDER</text>
+      <text x="14" y="48" fill="#C9D3EC">판매 주문</text>
+    </g>
+    <g transform="translate(760 258)">
+      <rect width="120" height="64" rx="6" fill="#20419A"/>
+      <text x="14" y="26" fill="#FFFFFF">ORDER_DATE</text>
+      <text x="14" y="48" fill="#C9D3EC">주문 일자</text>
+    </g>
+    <g transform="translate(1040 178)">
+      <rect width="120" height="64" rx="6" fill="#FFFFFF"/>
+      <text x="14" y="26" fill="#051657">SELECT</text>
+      <text x="14" y="48" fill="#20419A">read-only</text>
+    </g>
+    <circle cx="1226" cy="210" r="7" fill="#FFFFFF"/>
+  </g>
+
+  <g font-family="Orbitron, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+    <text x="80" y="170" fill="#FFFFFF" font-size="64" font-weight="700" letter-spacing="2">tibero-mcp</text>
+  </g>
+  <g font-family="'IBM Plex Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+    <text x="82" y="222" fill="#C9D3EC" font-size="24">Let AI agents read your Tibero schema.</text>
+    <text x="82" y="256" fill="#C9D3EC" font-size="24">Nothing gets written unless you say so.</text>
+    <text x="82" y="320" fill="#6E84BE" font-size="17">Model Context Protocol server · Python · official JDBC driver, fetched and verified</text>
+  </g>
+</svg>

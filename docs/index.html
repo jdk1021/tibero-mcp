@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tibero-mcp</title>
+<meta name="description" content="MCP server that lets AI agents explore and query Tibero databases. Read-only by default, comment-aware schema discovery, official JDBC driver fetched and verified.">
+<meta property="og:title" content="tibero-mcp">
+<meta property="og:description" content="Let AI agents read your Tibero schema. Nothing gets written unless you say so.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23051657'/%3E%3Cpath d='M9 10h14M16 10v13' stroke='%23fff' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;700&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #051657;      /* Tibero Blue1 */
+  --blue: #20419A;      /* Tibero Blue2 */
+  --sky: #6E84BE;       /* Tibero Blue3 */
+  --mist: #C9D3EC;
+  --paper: #F4F6FB;
+  --ink: #231F20;       /* Gray1 */
+  --muted: #666573;     /* Gray2 */
+  --line: #D6DCEB;
+  --deny: #D92632;      /* used only for refused statements */
+  --sans: "IBM Plex Sans KR", "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --wordmark: Orbitron, var(--sans);
+  --wrap: 1120px;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.65 var(--sans); }
+html[data-lang="en"] [lang="ko"], html[data-lang="ko"] [lang="en"] { display: none; }
+[lang="ko"] { word-break: keep-all; overflow-wrap: anywhere; }
+a { color: var(--blue); }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--sky); outline-offset: 3px; border-radius: 4px; }
+.wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 24px; }
+code, pre, kbd { font-family: var(--mono); }
+:not(pre) > code { font-size: .9em; background: #E7EBF6; padding: .1em .35em; border-radius: 4px; }
+
+/* top bar */
+.bar { background: var(--navy); color: #fff; }
+.bar .wrap { display: flex; align-items: center; gap: 24px; height: 64px; }
+.mark { font: 800 20px/1 var(--wordmark); letter-spacing: .04em; color: #fff; text-decoration: none; margin-right: auto; }
+.bar nav { display: flex; gap: 20px; font-size: 15px; }
+.bar nav a { color: var(--mist); text-decoration: none; }
+.bar nav a:hover { color: #fff; }
+.lang { display: inline-flex; border: 1px solid #2B3F86; border-radius: 999px; padding: 2px; }
+.lang button { font: 500 13px/1 var(--sans); color: var(--mist); background: none; border: 0; padding: 7px 12px; border-radius: 999px; cursor: pointer; }
+.lang button[aria-pressed="true"] { background: var(--blue); color: #fff; }
+
+/* hero */
+.hero { background: var(--navy); color: #fff; padding: 56px 0 88px; }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 56px; align-items: center; }
+.hero h1 { font: 700 clamp(32px, 4vw, 46px)/1.16 var(--sans); letter-spacing: -.02em; margin: 0 0 20px; }
+.hero p.lead { color: var(--mist); font-size: 19px; max-width: 34em; margin: 0 0 32px; }
+.install { display: flex; align-items: stretch; max-width: 520px; background: #0A1E6B; border: 1px solid #2B3F86; border-radius: 10px; overflow: hidden; }
+.install code { flex: 1; padding: 14px 16px; font-size: 14px; color: #fff; background: none; border-radius: 0; white-space: nowrap; overflow-x: auto; }
+.install button { font: 500 14px/1 var(--sans); background: var(--blue); color: #fff; border: 0; padding: 0 18px; cursor: pointer; }
+.install button:hover { background: #2A50B5; }
+.hero .links { margin-top: 20px; display: flex; gap: 20px; font-size: 15px; }
+.hero .links a { color: var(--mist); }
+
+/* agent session */
+.session { background: #fff; color: var(--ink); border-radius: 14px; box-shadow: 0 24px 48px -24px rgba(0, 0, 0, .5); overflow: hidden; font-size: 14px; }
+.session header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+.session header b { color: var(--ink); font-weight: 500; }
+.session ol { list-style: none; margin: 0; padding: 18px; display: grid; gap: 14px; }
+.turn { opacity: 1; }
+.js .turn { opacity: 0; transform: translateY(6px); transition: opacity .4s ease, transform .4s ease; }
+.js .turn.shown { opacity: 1; transform: none; }
+.ask { justify-self: end; max-width: 85%; background: var(--paper); border: 1px solid var(--line); border-radius: 12px 12px 4px 12px; padding: 9px 13px; }
+.call { font-family: var(--mono); font-size: 13px; color: var(--blue); }
+.call span { color: var(--muted); }
+.result { font-family: var(--mono); font-size: 12.5px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.result table { width: 100%; border-collapse: collapse; }
+.result th, .result td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.result th { background: #EEF1F9; color: var(--muted); font-weight: 500; }
+.result tr:last-child td { border-bottom: 0; }
+.result td.ko { font-family: var(--sans); }
+.refused { border: 1px solid #F2B8BE; background: #FDF1F2; padding: 9px 12px; border-radius: 8px; font-size: 13.5px; }
+.refused strong { color: var(--deny); font-weight: 700; }
+
+/* sections */
+section { padding: 88px 0; }
+section + section { border-top: 1px solid var(--line); }
+h2 { font: 700 clamp(26px, 3vw, 34px)/1.25 var(--sans); letter-spacing: -.015em; margin: 0 0 14px; }
+.sub { color: var(--muted); max-width: 40em; margin: 0 0 48px; }
+
+/* pillars: ordered by importance, first one leads */
+.pillars { display: grid; grid-template-columns: 1.25fr 1fr; gap: 40px 64px; }
+.pillar { border-top: 1px solid var(--line); padding-top: 18px; }
+.pillar h3 { font: 700 20px/1.35 var(--sans); margin: 0 0 8px; }
+.pillar p { margin: 0; color: #3B3A44; }
+.pillar.lead { grid-row: span 2; border-top-color: var(--navy); }
+.pillar.lead h3 { font-size: 26px; }
+.pillar.lead p { font-size: 18px; }
+.layers { margin-top: 26px; display: grid; gap: 6px; }
+.layers div { display: grid; grid-template-columns: 130px 1fr; gap: 12px; align-items: baseline; padding: 10px 14px; background: #fff; border: 1px solid var(--line); border-radius: 8px; font-size: 15px; }
+.layers div b { font-weight: 500; color: var(--navy); }
+.layers div:last-child { background: var(--navy); color: var(--mist); border-color: var(--navy); }
+.layers div:last-child b { color: #fff; }
+.layers div:last-child code { background: var(--blue); color: #fff; }
+
+/* steps: a real sequence */
+.steps { counter-reset: step; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; list-style: none; padding: 0; margin: 0; }
+.steps li { counter-increment: step; }
+.steps li::before { content: counter(step); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--navy); color: #fff; font: 600 15px/1 var(--wordmark); margin-bottom: 14px; }
+.steps h3 { font: 700 18px/1.4 var(--sans); margin: 0 0 8px; }
+.steps p { margin: 0 0 12px; color: #3B3A44; font-size: 15.5px; }
+pre { margin: 0; background: var(--navy); color: #E6EBF8; padding: 14px 16px; border-radius: 10px; font-size: 13px; line-height: 1.6; overflow-x: auto; }
+
+/* tools */
+.tools { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.tools th, .tools td { text-align: left; padding: 14px 18px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tools th { font-size: 14px; color: var(--muted); font-weight: 500; background: #EEF1F9; }
+.tools td:first-child { font-family: var(--mono); font-size: 14.5px; color: var(--navy); white-space: nowrap; }
+.tools tr:last-child td { border-bottom: 0; }
+.tools .gated td { background: #FBFBFD; }
+.tag { display: inline-block; margin-left: 8px; font: 500 12px/1 var(--sans); color: var(--deny); border: 1px solid #F2B8BE; border-radius: 999px; padding: 4px 8px; vertical-align: 2px; }
+
+/* driver note */
+.driver { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+.driver dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 10px 20px; font-size: 15px; }
+.driver dt { color: var(--muted); }
+.driver dd { margin: 0; font-family: var(--mono); font-size: 14px; word-break: break-all; }
+
+footer { background: var(--navy); color: var(--mist); padding: 40px 0; font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 32px; justify-content: space-between; }
+footer a { color: #fff; }
+
+@media (max-width: 900px) {
+  .hero .wrap, .pillars, .driver { grid-template-columns: minmax(0, 1fr); }
+  .pillar.lead { grid-row: auto; }
+  .steps { grid-template-columns: minmax(0, 1fr); }
+  .bar .wrap { gap: 12px; }
+  .bar nav { display: none; }
+  section { padding: 64px 0; }
+  .tools td:first-child { white-space: normal; }
+}
+@media (max-width: 560px) {
+  .wrap { padding: 0 16px; }
+  body { font-size: 16px; }
+  .result { overflow-x: auto; }
+  .layers div { grid-template-columns: 1fr; gap: 2px; }
+  .tools th:nth-child(2), .tools td:nth-child(2) { display: none; }
+  .tools td:first-child { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .js .turn { transition: none; opacity: 1; transform: none; }
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="wrap">
+    <a class="mark" href="#top">tibero-mcp</a>
+    <nav aria-label="Sections">
+      <a href="#why"><span lang="en">Why</span><span lang="ko">특장점</span></a>
+      <a href="#start"><span lang="en">Quick start</span><span lang="ko">빠른 시작</span></a>
+      <a href="#tools"><span lang="en">Tools</span><span lang="ko">도구</span></a>
+      <a href="https://github.com/jdk1021/tibero-mcp">GitHub</a>
+    </nav>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+      <button type="button" data-set-lang="ko" aria-pressed="false">한국어</button>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+<section class="hero" aria-labelledby="hero-title">
+  <div class="wrap">
+    <div>
+      <h1 id="hero-title">
+        <span lang="en">Let AI agents read your Tibero schema. Nothing gets written unless you say so.</span>
+        <span lang="ko">AI 에이전트가 Tibero 스키마를 읽습니다. 허락하기 전에는 아무것도 쓰지 않습니다.</span>
+      </h1>
+      <p class="lead">
+        <span lang="en">An MCP server for Claude Code, Codex and Cursor that finds tables by their Korean comments, explains keys and plans, and runs only the queries you would let a new colleague run.</span>
+        <span lang="ko">Claude Code, Codex, Cursor에서 쓰는 MCP 서버입니다. 한글 주석으로 테이블을 찾고, 키와 실행 계획을 설명하며, 새로 온 동료에게 허락할 만한 쿼리만 실행합니다.</span>
+      </p>
+      <div class="install">
+        <code id="cmd">claude mcp add -s user tibero -- uv --directory ./tibero-mcp run tibero-mcp</code>
+        <button type="button" id="copy"><span lang="en">Copy</span><span lang="ko">복사</span></button>
+      </div>
+      <div class="links">
+        <a href="https://github.com/jdk1021/tibero-mcp"><span lang="en">Source on GitHub</span><span lang="ko">GitHub 소스</span></a>
+        <a href="#start"><span lang="en">Setup in three steps</span><span lang="ko">세 단계로 설정하기</span></a>
+      </div>
+    </div>
+
+    <div class="session" aria-label="Example agent session">
+      <header><b>Claude Code</b> · tibero</header>
+      <ol>
+        <li class="turn ask">
+          <span lang="en">Where do we keep order dates for sales?</span>
+          <span lang="ko">판매 쪽 주문일은 어디에 저장돼?</span>
+        </li>
+        <li class="turn call">search_columns<span>(keyword="주문", table_search="판매")</span></li>
+        <li class="turn result">
+          <table>
+            <thead><tr><th>TABLE</th><th>COLUMN</th><th>TYPE</th><th>COMMENT</th></tr></thead>
+            <tbody>
+              <tr><td>SALES_ORDER</td><td>ORDER_DATE</td><td>TIMESTAMP(6)</td><td class="ko">주문 일자</td></tr>
+              <tr><td>SALES_ORDER</td><td>ORDER_USER</td><td>VARCHAR(20)</td><td class="ko">주문 담당자</td></tr>
+              <tr><td>ORDER_LINE</td><td>DELIVERY_DATE</td><td>TIMESTAMP(6)</td><td class="ko">납기 일자</td></tr>
+            </tbody>
+          </table>
+        </li>
+        <li class="turn ask">
+          <span lang="en">Mark every order as shipped.</span>
+          <span lang="ko">전부 출고 완료로 바꿔 줘.</span>
+        </li>
+        <li class="turn call">query<span>("UPDATE SALES_ORDER SET STATUS = 'SHIPPED'")</span></li>
+        <li class="turn refused">
+          <strong><span lang="en">Refused.</span><span lang="ko">거부됨.</span></strong>
+          <span lang="en">UPDATE is not a query, and this server is read-only. Nothing reached the database.</span>
+          <span lang="ko">UPDATE는 조회가 아니고, 이 서버는 조회 전용입니다. 데이터베이스에는 아무것도 전달되지 않았습니다.</span>
+        </li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section id="why" aria-labelledby="why-title">
+  <div class="wrap">
+    <h2 id="why-title"><span lang="en">Built for how agents work on real Tibero schemas</span><span lang="ko">실제 Tibero 스키마를 다루는 에이전트에 맞췄습니다</span></h2>
+    <p class="sub">
+      <span lang="en">Earlier Tibero MCP servers handed the model a raw SQL pipe with commits on and left you to find a JDBC jar. This one starts from safety and works up.</span>
+      <span lang="ko">기존 Tibero MCP 서버는 커밋까지 되는 SQL 통로를 모델에 그대로 열어 주고, JDBC jar는 사용자가 알아서 구해야 했습니다. 이 서버는 안전에서 출발합니다.</span>
+    </p>
+    <div class="pillars">
+      <article class="pillar lead">
+        <h3><span lang="en">Safe by default</span><span lang="ko">기본값이 안전합니다</span></h3>
+        <p>
+          <span lang="en">Tibero ignores the JDBC read-only flag and has no <code>SET TRANSACTION READ ONLY</code>, so the server enforces read-only itself, in layers:</span>
+          <span lang="ko">Tibero는 JDBC 읽기 전용 플래그를 무시하고 <code>SET TRANSACTION READ ONLY</code>도 없습니다. 그래서 서버가 여러 겹으로 직접 막습니다.</span>
+        </p>
+        <div class="layers">
+          <div><b><span lang="en">Tool surface</span><span lang="ko">도구 구성</span></b><span><span lang="en">No <code>execute</code> tool unless you turn writes on</span><span lang="ko">쓰기를 켜기 전에는 <code>execute</code> 도구가 없음</span></span></div>
+          <div><b><span lang="en">Statement check</span><span lang="ko">문장 검사</span></b><span><span lang="en">Only <code>SELECT</code>/<code>WITH</code>, one statement, no <code>FOR UPDATE</code></span><span lang="ko"><code>SELECT</code>·<code>WITH</code>만, 한 문장만, <code>FOR UPDATE</code> 금지</span></span></div>
+          <div><b><span lang="en">Transaction</span><span lang="ko">트랜잭션</span></b><span><span lang="en">Every read ends in a rollback</span><span lang="ko">모든 조회는 롤백으로 끝남</span></span></div>
+          <div><b><span lang="en">Your account</span><span lang="ko">접속 계정</span></b><span><span lang="en">Grant <code>SELECT</code> only, and nothing else can slip through</span><span lang="ko"><code>SELECT</code> 권한만 주면 그 밖의 경로도 닫힘</span></span></div>
+        </div>
+      </article>
+      <article class="pillar">
+        <h3><span lang="en">Schema discovery that reads comments</span><span lang="ko">주석을 읽는 스키마 탐색</span></h3>
+        <p>
+          <span lang="en">Search tables and columns by their comments, then get columns, keys, foreign keys and indexes in one call.</span>
+          <span lang="ko">주석으로 테이블과 컬럼을 검색하고, 컬럼·키·외래키·인덱스를 한 번의 호출로 확인합니다.</span>
+        </p>
+      </article>
+      <article class="pillar">
+        <h3><span lang="en">Results an agent can use</span><span lang="ko">에이전트가 바로 쓰는 결과</span></h3>
+        <p>
+          <span lang="en">Typed JSON, paged results with a <code>next_offset</code>, timeouts, plans as a tree, and errors that say what to try next.</span>
+          <span lang="ko">타입이 살아 있는 JSON, <code>next_offset</code>으로 이어 받는 페이지 단위 결과, 타임아웃, 트리 형태의 실행 계획, 다음 행동을 알려 주는 오류 메시지.</span>
+        </p>
+      </article>
+      <article class="pillar">
+        <h3><span lang="en">No driver hunting</span><span lang="ko">드라이버를 찾아다닐 필요 없음</span></h3>
+        <p>
+          <span lang="en">The official JDBC driver comes from Maven Central on first run, checked against a pinned SHA-1.</span>
+          <span lang="ko">공식 JDBC 드라이버를 첫 실행 때 Maven Central에서 받아 고정된 SHA-1로 검증합니다.</span>
+        </p>
+      </article>
+      <article class="pillar">
+        <h3><span lang="en">Runs alongside other agents</span><span lang="ko">다른 에이전트와 함께 운영</span></h3>
+        <p>
+          <span lang="en">stdio or Streamable HTTP, automatic reconnect, and a clean exit when the client leaves.</span>
+          <span lang="ko">stdio와 Streamable HTTP, 자동 재연결, 클라이언트가 떠나면 깔끔한 종료.</span>
+        </p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="start" aria-labelledby="start-title">
+  <div class="wrap">
+    <h2 id="start-title"><span lang="en">Quick start</span><span lang="ko">빠른 시작</span></h2>
+    <p class="sub">
+      <span lang="en">Python 3.12+, uv and Java 8+. The driver downloads itself the first time the server connects.</span>
+      <span lang="ko">Python 3.12 이상, uv, Java 8 이상이 필요합니다. 드라이버는 서버가 처음 접속할 때 알아서 내려받습니다.</span>
+    </p>
+    <ol class="steps">
+      <li>
+        <h3><span lang="en">Clone</span><span lang="ko">내려받기</span></h3>
+        <p><span lang="en">Get the source and install dependencies.</span><span lang="ko">소스를 받고 의존성을 설치합니다.</span></p>
+        <pre>git clone https://github.com/jdk1021/tibero-mcp.git
+cd tibero-mcp
+uv sync</pre>
+      </li>
+      <li>
+        <h3><span lang="en">Configure</span><span lang="ko">접속 정보 입력</span></h3>
+        <p><span lang="en">Copy the template and fill in host, database name, user and password.</span><span lang="ko">템플릿을 복사하고 호스트, DB 이름, 계정, 비밀번호를 입력합니다.</span></p>
+        <pre>cp env.example .env
+$EDITOR .env</pre>
+      </li>
+      <li>
+        <h3><span lang="en">Register</span><span lang="ko">클라이언트에 등록</span></h3>
+        <p><span lang="en">Add it to Claude Code, or any MCP client, and start asking.</span><span lang="ko">Claude Code나 다른 MCP 클라이언트에 추가하고 바로 질문하면 됩니다.</span></p>
+        <pre>claude mcp add -s user tibero -- \
+  uv --directory $PWD run tibero-mcp</pre>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section id="tools" aria-labelledby="tools-title">
+  <div class="wrap">
+    <h2 id="tools-title"><span lang="en">Tools</span><span lang="ko">도구</span></h2>
+    <p class="sub">
+      <span lang="en">Six read tools are always available. The seventh exists only when you ask for it.</span>
+      <span lang="ko">조회 도구 여섯 개는 항상 제공되고, 일곱 번째는 직접 켤 때만 생깁니다.</span>
+    </p>
+    <table class="tools">
+      <thead><tr><th><span lang="en">Tool</span><span lang="ko">도구</span></th><th><span lang="en">What it does</span><span lang="ko">기능</span></th></tr></thead>
+      <tbody>
+        <tr><td>list_schemas</td><td><span lang="en">Schemas with table and view counts</span><span lang="ko">스키마별 테이블·뷰 수</span></td></tr>
+        <tr><td>list_tables</td><td><span lang="en">Tables and views with comments and row estimates, filtered by name or comment</span><span lang="ko">테이블·뷰와 주석, 추정 행 수. 이름이나 주석으로 필터</span></td></tr>
+        <tr><td>describe_table</td><td><span lang="en">Columns, primary, unique and foreign keys, indexes</span><span lang="ko">컬럼, 기본키·유니크키·외래키, 인덱스</span></td></tr>
+        <tr><td>search_columns</td><td><span lang="en">Columns across a schema matched by name or comment</span><span lang="ko">스키마 전체에서 이름이나 주석으로 컬럼 검색</span></td></tr>
+        <tr><td>query</td><td><span lang="en">One <code>SELECT</code>/<code>WITH</code> with bind parameters and a row cap</span><span lang="ko"><code>SELECT</code>·<code>WITH</code> 한 문장, 바인드 변수와 행 수 상한</span></td></tr>
+        <tr><td>explain</td><td><span lang="en">Execution plan as a tree with cost, cardinality and predicates</span><span lang="ko">비용·카디널리티·조건이 붙은 트리 형태의 실행 계획</span></td></tr>
+        <tr class="gated"><td>execute</td><td><span lang="en">DML, DDL or PL/SQL, committed on success</span><span lang="ko">DML·DDL·PL/SQL 실행 후 커밋</span><span class="tag"><span lang="en">only with TIBERO_READ_ONLY=false</span><span lang="ko">TIBERO_READ_ONLY=false일 때만</span></span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section aria-labelledby="driver-title">
+  <div class="wrap driver">
+    <div>
+      <h2 id="driver-title"><span lang="en">The driver, without the scavenger hunt</span><span lang="ko">드라이버는 알아서 준비됩니다</span></h2>
+      <p>
+        <span lang="en">TmaxTibero publishes its JDBC driver on Maven Central with GPG signatures. tibero-mcp downloads that exact build once, refuses it if the checksum differs, and caches it. Nothing proprietary is stored in the repository, and you can point <code>TIBERO_JDBC_JAR</code> at a jar you already have.</span>
+        <span lang="ko">TmaxTibero는 JDBC 드라이버를 GPG 서명과 함께 Maven Central에 배포합니다. tibero-mcp는 정확히 그 빌드를 한 번 내려받고, 체크섬이 다르면 사용하지 않으며, 캐시해 둡니다. 저장소에는 독점 바이너리가 없고, 이미 가진 jar가 있다면 <code>TIBERO_JDBC_JAR</code>로 지정할 수 있습니다.</span>
+      </p>
+    </div>
+    <dl>
+      <dt><span lang="en">Artifact</span><span lang="ko">아티팩트</span></dt><dd>com.tmaxtibero:tbjdbc8:7.2.6</dd>
+      <dt>SHA-1</dt><dd>c0fa9b9b43afc8a4c18bdb89acd4d40d8a30bc81</dd>
+      <dt><span lang="en">Cache</span><span lang="ko">캐시</span></dt><dd>~/.cache/tibero-mcp</dd>
+      <dt><span lang="en">Verified with</span><span lang="ko">검증 환경</span></dt><dd>Tibero 6</dd>
+    </dl>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>
+      <span lang="en">MIT licensed. Not affiliated with or endorsed by TmaxTibero. Tibero is a trademark of TmaxTibero Co., Ltd.</span>
+      <span lang="ko">MIT 라이선스. TmaxTibero와 관계가 없으며 보증을 받지 않았습니다. Tibero는 TmaxTibero Co., Ltd.의 상표입니다.</span>
+    </span>
+    <span><a href="https://github.com/jdk1021/tibero-mcp">GitHub</a> · <a href="https://github.com/jdk1021/tibero-mcp/blob/main/SECURITY.md"><span lang="en">Security</span><span lang="ko">보안</span></a></span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  function store(v) { try { localStorage.setItem("tibero-mcp-lang", v); } catch (e) {} }
+  function stored() { try { return localStorage.getItem("tibero-mcp-lang"); } catch (e) { return null; } }
+  function setLang(lang) {
+    root.setAttribute("data-lang", lang);
+    root.setAttribute("lang", lang);
+    document.querySelectorAll("[data-set-lang]").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-set-lang") === lang));
+    });
+  }
+  var param = new URLSearchParams(location.search).get("lang");
+  var initial = param || stored() || ((navigator.language || "").toLowerCase().indexOf("ko") === 0 ? "ko" : "en");
+  setLang(initial === "ko" ? "ko" : "en");
+  document.querySelectorAll("[data-set-lang]").forEach(function (b) {
+    b.addEventListener("click", function () { var v = b.getAttribute("data-set-lang"); setLang(v); store(v); });
+  });
+
+  var copy = document.getElementById("copy");
+  copy.addEventListener("click", function () {
+    var text = document.getElementById("cmd").textContent;
+    var done = function () {
+      var spans = copy.querySelectorAll("span");
+      spans[0].textContent = "Copied"; spans[1].textContent = "복사됨";
+      setTimeout(function () { spans[0].textContent = "Copy"; spans[1].textContent = "복사"; }, 1600);
+    };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () {});
+  });
+
+  // One orchestrated moment: the example session plays once.
+  if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    root.classList.add("js");
+    var turns = document.querySelectorAll(".turn");
+    turns.forEach(function (t, i) { setTimeout(function () { t.classList.add("shown"); }, 250 + i * 520); });
+  }
+})();
+</script>
+</body>
+</html>

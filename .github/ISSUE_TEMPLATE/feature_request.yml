@@ -1,0 +1,24 @@
+name: Feature request
+description: A tool or behaviour that would help agents work with Tibero
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: Describe the task an agent could not do, or did badly.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help
+  - type: dropdown
+    id: writes
+    attributes:
+      label: Does this need to change data?
+      options:
+        - "No, read-only is enough"
+        - "Yes, it needs writes"
+    validations:
+      required: true

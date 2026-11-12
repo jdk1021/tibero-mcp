@@ -1,0 +1,42 @@
+[project]
+name = "tibero-mcp"
+version = "0.1.0"
+description = "MCP server for Tibero databases — schema exploration, safe read-only queries, and no manual JDBC jar setup"
+readme = "README.md"
+license = "MIT"
+keywords = ["mcp", "tibero", "database", "jdbc", "llm"]
+authors = [{ name = "jdk1021" }]
+requires-python = ">=3.12"
+dependencies = [
+    "jpype1>=1.7.1",
+    "mcp[cli]>=2.3.0",
+    "pydantic-settings>=2.16.2",
+]
+
+[project.scripts]
+tibero-mcp = "tibero_mcp.server:main"
+
+[project.urls]
+Homepage = "https://jdk1021.github.io/tibero-mcp/"
+Repository = "https://github.com/jdk1021/tibero-mcp"
+Issues = "https://github.com/jdk1021/tibero-mcp/issues"
+
+[build-system]
+requires = ["uv_build>=0.11.7,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
