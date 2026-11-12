@@ -85,3 +85,15 @@ def test_execute_keeps_plsql_units_intact(sql, keyword, expected):
 def test_execute_still_rejects_scripts_of_plain_statements():
     with pytest.raises(SqlRejected):
         parse_for_execute("DELETE FROM A; DELETE FROM B")
+
+
+def test_read_only_rejection_does_not_point_to_a_missing_tool():
+    with pytest.raises(SqlRejected) as err:
+        require_read("UPDATE T SET A = 1")
+    assert "execute" not in str(err.value)
+    assert "read-only" in str(err.value)
+
+
+def test_rejection_points_to_execute_when_writes_are_enabled():
+    with pytest.raises(SqlRejected, match="execute tool"):
+        require_read("UPDATE T SET A = 1", writes_enabled=True)
